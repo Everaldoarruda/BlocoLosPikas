@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAMISA LOS PIKAS E LAS PERIKITAS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        @media print {
+
+            /* Hide non-printable elements */
+            #adminTools,
+            #adminStatusIndicator,
+            button,
+            .no-print,
+            header button,
+            .fa-trash,
+            .fa-pen {
+                display: none !important;
+            }
+
+            /* Hide Table Actions Column */
+            th:last-child,
+            td:last-child {
+                display: none !important;
+            }
+
+            /* Layout adjustments */
+            body,
+            main,
+            #appContainer {
+                height: auto !important;
+                overflow: visible !important;
+                background: white !important;
+            }
+
+            header {
+                border-bottom: 2px solid #000 !important;
+                padding-bottom: 10px !important;
+                margin-bottom: 20px !important;
+                box-shadow: none !important;
+            }
+
+            /* Ensure text is black */
+            * {
+                color: black !important;
+                text-shadow: none !important;
+            }
+
+            /* Keep Status Colors if possible, otherwise bold */
+            .bg-green-100 {
+                background-color: #dcfce7 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .bg-red-100 {
+                background-color: #fee2e2 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .bg-yellow-100 {
+                background-color: #fef9c3 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- LOGIN MODAL (VISITANTE) -->
+    <div id="loginOverlay" class="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full text-center">
+            <div class="mb-6">
+                <i class="fas fa-users text-4xl text-blue-600"></i>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">Camisas Los Pika e Las Perikitas</h2>
+            <p class="text-gray-500 mb-6 text-sm">Digite a senha de acesso (visitante).</p>
+            <input type="password" id="passwordInput" placeholder="Senha de acesso"
+                class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition mb-4 text-center text-lg">
+            <button onclick="attemptLogin()"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition transform active:scale-95">
+                Entrar
+            </button>
+            <p id="loginError" class="text-red-500 text-xs mt-3 hidden">Senha incorreta.</p>
+
+        </div>
+    </div>
+
+    <!-- PIX MODAL -->
+    <div id="pixModal"
+        class="fixed inset-0 z-[60] bg-black/80 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div
+            class="bg-white rounded-xl shadow-2xl p-6 max-w-xs w-full text-center relative animate-[fadeIn_0.2s_ease-out]">
+            <button onclick="closePixModal()"
+                class="absolute top-2 right-3 text-gray-400 hover:text-gray-600 transition">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="mb-3 text-emerald-500">
+                <i class="fa-brands fa-pix text-4xl"></i>
+            </div>
+            <h3 class="text-lg font-bold mb-1 text-slate-800">Pagamento Pix</h3>
+            <p class="text-xs text-gray-500 mb-4">Copie a chave abaixo para pagar.</p>
+
+            <div class="bg-slate-50 p-3 rounded-lg flex items-center justify-between mb-4 border border-slate-200 group cursor-pointer hover:border-emerald-300 transition"
+                onclick="copyPix()">
+                <span class="text-xs font-mono text-gray-600 truncate mr-2 select-all"
+                    id="pixKeyDisplay">CHAVE_PIX_AQUI</span>
+                <i class="fas fa-copy text-gray-400 group-hover:text-emerald-500"></i>
+            </div>
+
+            <button id="btnCopyPix" onclick="copyPix()"
+                class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-lg transition flex items-center justify-center gap-2 shadow-lg">
+                <i class="fas fa-copy"></i> Copiar Chave
+            </button>
+        </div>
+    </div>
+
+    <!-- ADMIN AUTH MODAL -->
+    <div id="adminAuthModal"
+        class="fixed inset-0 z-[60] bg-black/80 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-xs w-full text-center relative">
+            <button onclick="closeAdminModal()" class="absolute top-2 right-3 text-gray-400 hover:text-gray-600"><i
+                    class="fas fa-times"></i></button>
+            <div class="mb-4 text-red-500">
+                <i class="fas fa-user-shield text-3xl"></i>
+            </div>
+            <h3 class="text-lg font-bold mb-1">Acesso Administrativo</h3>
+            <p class="text-xs text-gray-500 mb-4">Esta ação requer senha de administrador.</p>
+
+            <input type="password" id="adminPasswordInput" placeholder="Senha Admin"
+                class="w-full px-3 py-2 rounded border border-gray-300 focus:border-red-500 focus:ring-1 focus:ring-red-200 outline-none mb-3 text-center">
+
+            <button onclick="verifyAdminPassword()"
+                class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded transition">
+                Liberar Acesso
+            </button>
+            <p id="adminError" class="text-red-500 text-[10px] mt-2 hidden">Senha incorreta.</p>
+        </div>
+    </div>
+
+    <!-- DELETE CONFIRMATION MODAL -->
+    <div id="deleteModal"
+        class="fixed inset-0 z-[80] bg-black/50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full text-center">
+            <div class="mb-4 text-red-500 bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
+                <i class="fas fa-trash-alt text-2xl"></i>
+            </div>
+            <h3 class="text-lg font-bold mb-2 text-gray-800">Excluir Pedido?</h3>
+            <p class="text-sm text-gray-500 mb-6">Esta ação não pode ser desfeita. Tem certeza que deseja remover este
+                item?</p>
+
+            <input type="hidden" id="deleteTargetId">
+
+            <div class="flex gap-3">
+                <button onclick="closeDeleteModal()"
+                    class="flex-1 px-4 py-2 rounded-lg text-gray-600 bg-gray-100 hover:bg-gray-200 font-medium transition">
+                    Cancelar
+                </button>
+                <button onclick="confirmDelete()"
+                    class="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 shadow-lg transition">
+                    Excluir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- IMAGE PREVIEW MODAL -->
+    <div id="imageModal"
+        class="fixed inset-0 z-[70] bg-black/90 hidden flex items-center justify-center p-4 backdrop-blur-md"
+        onclick="closeImageModal()">
+        <div class="relative max-w-3xl w-full" onclick="event.stopPropagation()">
+            <button onclick="closeImageModal()"
+                class="absolute -top-12 right-0 text-white hover:text-gray-300 text-2xl transition">
+                <i class="fas fa-times"></i>
+            </button>
+            <img id="previewImage" src="" alt="Camisa"
+                class="w-full h-auto rounded-lg shadow-2xl border-4 border-white/20">
+            <p id="previewCaption" class="text-white text-center mt-4 font-bold text-lg tracking-wider"></p>
+        </div>
+    </div>
+
+    <!-- MAIN APP (Hidden by default) -->
+    <div id="appContainer" class="hidden h-full flex flex-col">
+
+        <!-- Header -->
+        <header
+            class="bg-white border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row justify-between items-center shadow-sm z-10">
+            <div class="flex items-center gap-3 mb-4 md:mb-0">
+                <div class="bg-blue-100 p-2 rounded-lg">
+                    <i class="fas fa-tshirt text-blue-600 text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-800">Camisas Los Pika e Las Perikitas</h1>
+                    <div class="flex items-center gap-2 text-xs text-slate-500">
+                        <span>Lista Oficial (Local)</span>
+                        <span id="adminStatusIndicator"
+                            class="hidden bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold text-[10px] border border-red-200">
+                            <i class="fas fa-check"></i> MODO ADMIN
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-4 items-center">
+                <div class="text-right mr-4">
+                    <p class="text-xs text-gray-500 uppercase font-semibold">Arrecadado</p>
+                    <p class="text-2xl font-bold text-green-600" id="totalValueDisplay">R$ 0,00</p>
+                </div>
+
+                <div class="text-right border-l pl-4 border-gray-200 hidden sm:block">
+                    <p class="text-xs text-gray-500 uppercase font-semibold">Total Geral</p>
+                    <p class="text-xl font-bold text-gray-500" id="totalForecastDisplay">R$ 0,00</p>
+                </div>
+
+                <div class="text-right border-l pl-4 border-gray-200">
+                    <p class="text-xs text-gray-500 uppercase font-semibold">Peças</p>
+                    <p class="text-xl font-bold text-blue-600" id="totalItemsDisplay">0</p>
+                </div>
+
+                <!-- Admin Tools (Hidden by default) -->
+                <div id="adminTools" class="hidden flex items-center gap-2 ml-2">
+                    <button onclick="downloadBackup()"
+                        class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-lg transition border border-slate-200"
+                        title="Baixar JSON (Backup)">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button onclick="window.print()"
+                        class="bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-2 rounded-lg transition border border-slate-200"
+                        title="Imprimir Lista">
+                        <i class="fas fa-print"></i>
+                    </button>
+                    <button onclick="exitAdminMode()"
+                        class="bg-red-50 hover:bg-red-100 text-red-500 px-3 py-2 rounded-lg transition border border-red-100"
+                        title="Sair do Modo Admin">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+
+                <button onclick="openPixModal()"
+                    class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 transition hover:-translate-y-0.5 mr-2">
+                    <i class="fa-brands fa-pix"></i> <span class="hidden md:inline">Pagar Pix</span>
+                </button>
+
+                <button id="btnMainAction" onclick="handleMainAction()"
+                    class="ml-2 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 transition hover:-translate-y-0.5">
+                    <i class="fas fa-user-cog"></i> <span class="hidden md:inline">Gerenciar</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <main class="flex-1 overflow-auto p-4 md:p-6">
+            <div class="max-w-7xl mx-auto">
+
+                <!-- Main Stats Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div
+                        class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-gray-500 font-bold uppercase">Pagos</p>
+                            <h3 class="text-2xl font-bold text-green-600" id="countPaid">0</h3>
+                        </div>
+                        <i class="fas fa-check-circle text-green-100 text-3xl"></i>
+                    </div>
+                    <div
+                        class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-gray-500 font-bold uppercase">Pendentes</p>
+                            <h3 class="text-2xl font-bold text-red-500" id="countPending">0</h3>
+                        </div>
+                        <i class="fas fa-clock text-red-100 text-3xl"></i>
+                    </div>
+                    <div
+                        class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-gray-500 font-bold uppercase">Verdes</p>
+                            <h3 class="text-2xl font-bold text-emerald-600" id="countGreen">0</h3>
+                        </div>
+                        <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                            <div class="w-4 h-4 rounded-full bg-green-600"></div>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-gray-500 font-bold uppercase">Azuis</p>
+                            <h3 class="text-2xl font-bold text-blue-600" id="countBlue">0</h3>
+                        </div>
+                        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                            <div class="w-4 h-4 rounded-full bg-blue-600"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Size Stats -->
+                <div class="mb-6">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase mb-2 px-1">Resumo por Tamanho</h3>
+                    <div class="grid grid-cols-4 md:grid-cols-8 gap-3" id="sizeStatsContainer">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr
+                                    class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider border-b border-gray-200">
+                                    <th class="p-4 font-semibold">Nome</th>
+                                    <th class="p-4 font-semibold text-center">Tam.</th>
+                                    <th class="p-4 font-semibold text-center">Cor</th>
+                                    <th class="p-4 font-semibold text-center">Status</th>
+                                    <th class="p-4 font-semibold text-right">Valor</th>
+                                    <th class="p-4 font-semibold text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="text-sm divide-y divide-gray-100">
+                                <!-- Rows generated by JS -->
+                                <tr>
+                                    <td colspan="6" class="p-8 text-center text-gray-400">
+                                        <i class="fas fa-circle-notch fa-spin mb-2"></i> Carregando dados...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ADD/EDIT MODAL -->
+    <div id="entryModal"
+        class="fixed inset-0 z-50 bg-black/50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="font-bold text-lg text-gray-800" id="modalTitle">Adicionar Pessoa</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i
+                        class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="editDocId">
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nome</label>
+                    <input type="text" id="inputName"
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="Ex: Maria José">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tamanho</label>
+                        <select id="inputSize"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <option value="PP">PP</option>
+                            <option value="P">P</option>
+                            <option value="M">M</option>
+                            <option value="G" selected>G</option>
+                            <option value="GG">GG</option>
+                            <option value="XG">XG</option>
+                            <option value="XGG">XGG</option>
+                            <option value="EG">EG</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Cor</label>
+                        <select id="inputColor"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <option value="VERDE">VERDE</option>
+                            <option value="AZUL">AZUL</option>
+                            <option value="NÃO INFORMADO">OUTRO</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 items-center">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Valor (R$)</label>
+                        <input type="number" id="inputValue" step="0.01"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                            value="16.00">
+                    </div>
+                    <div class="flex items-center mt-5">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="inputPaid" class="sr-only peer">
+                            <div
+                                class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500">
+                            </div>
+                            <span class="ms-3 text-sm font-medium text-gray-700">Pago (PG)</span>
+                        </label>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="bg-gray-50 px-6 py-4 flex justify-end gap-2">
+                <button onclick="closeModal()"
+                    class="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-200 font-medium">Cancelar</button>
+                <button onclick="saveEntry()"
+                    class="px-4 py-2 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast"
+        class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-xl transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <i class="fas fa-info-circle mr-2"></i> <span id="toastMsg">Mensagem</span>
+    </div>
+
+    <!-- MAIN SCRIPT (NO DATABASE) -->
+    <script>
+        // CONFIG
+        const API_URL = 'http://localhost:3001/camisas';
+        const STORAGE_KEY = 'camisas_data_v1';
+        let camisasData = [];
+        let isAdmin = false;
+        let pendingAction = null;
+
+        // --- DATA & LOGIC ---
+        const INITIAL_DATA_CSV = [
+            { n: "REBEKA", s: "G", c: "VERDE", p: false }, { n: "GAEL", s: "PP", c: "VERDE", p: false }, { n: "ADRYAN", s: "P", c: "VERDE", p: false },
+            { n: "GLAUBER", s: "G", c: "VERDE", p: false }, { n: "JUNIOR ELMER", s: "XG", c: "VERDE", p: false }, { n: "LILIA", s: "M", c: "VERDE", p: false },
+            { n: "PAPAI", s: "G", c: "VERDE", p: false }, { n: "ROSA", s: "G", c: "VERDE", p: false }, { n: "CLEIDE", s: "G", c: "VERDE", p: false },
+            { n: "JACK", s: "M", c: "VERDE", p: false }, { n: "VINY", s: "M", c: "AZUL", p: false }, { n: "FAILA", s: "G", c: "AZUL", p: true },
+            { n: "LUCINEIDE", s: "G", c: "VERDE", p: false }, { n: "MARIA JOSÉ", s: "G", c: "AZUL", p: false }, { n: "LETÍCIA", s: "M", c: "AZUL", p: false },
+            { n: "ALDO", s: "G", c: "VERDE", p: false }, { n: "VINÍCIUS", s: "G", c: "VERDE", p: false }, { n: "ROBERTA", s: "M", c: "VERDE", p: false },
+            { n: "EVERALDO", s: "XG", c: "VERDE", p: false }, { n: "TONHO", s: "G", c: "NÃO INFORMADO", p: false }, { n: "BIANCA", s: "GG", c: "NÃO INFORMADO", p: true },
+            { n: "ANTÔNIO", s: "P", c: "VERDE", p: false }, { n: "SANDRA", s: "G", c: "VERDE", p: false }, { n: "MARCONE", s: "G", c: "VERDE", p: false },
+            { n: "TAYNA", s: "GG", c: "VERDE", p: false }, { n: "RENATA", s: "G", c: "VERDE", p: false }, { n: "GRILO", s: "XGG", c: "AZUL", p: false },
+            { n: "BRENO", s: "XG", c: "AZUL", p: false }, { n: "IRANIR", s: "GG", c: "VERDE", p: false }, { n: "SOMBRA", s: "G", c: "VERDE", p: false },
+            { n: "JUNIOR PANCA", s: "EG", c: "AZUL", p: true }, { n: "ELIANE", s: "G", c: "AZUL", p: true }, { n: "NINHA", s: "M", c: "AZUL", p: false },
+            { n: "STEFANY", s: "M", c: "AZUL", p: false }, { n: "CABEÇA", s: "G", c: "AZUL", p: false }, { n: "NATÁLIA", s: "M", c: "VERDE", p: false },
+            { n: "DAVİD", s: "M", c: "VERDE", p: false }, { n: "SANDRO AMEIXA", s: "M", c: "AZUL", p: false }, { n: "CLAUDIA", s: "G", c: "AZUL", p: false }
+        ];
+
+        // --- LOCAL STORAGE FUNCTIONS ---
+        function loadData() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                camisasData = JSON.parse(stored);
+            } else {
+                // Initialize with seed data if empty
+                camisasData = INITIAL_DATA_CSV.map((item, index) => ({
+                    id: 'seed_' + index,
+                    name: item.n,
+                    size: item.s,
+                    color: item.c,
+                    paid: item.p,
+                    value: 16.00,
+                    createdAt: new Date().toISOString()
+                }));
+                saveData();
+                showToast("Lista inicial carregada!");
+            }
+            refreshUI();
+        }
+
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(camisasData));
+            refreshUI();
+        }
+
+        function refreshUI() {
+            // Sort A-Z
+            const sortedList = [...camisasData].sort((a, b) => a.name.localeCompare(b.name));
+            renderTable(sortedList);
+            updateStats(sortedList);
+        }
+
+        // --- BACKUP FUNCTIONS ---
+        window.downloadBackup = () => {
+            const dataStr = JSON.stringify(camisasData, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup_camisas_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast("Backup baixado com sucesso!");
+        };
+
+        // --- IMAGE PREVIEW LOGIC ---
+        const URL_VERDE = "https://placehold.co/600x400/16a34a/ffffff?text=Camisa+VERDE";
+        const URL_AZUL = "https://placehold.co/600x400/2563eb/ffffff?text=FOTO+REAL+CAMISA+AZUL";
+
+        window.viewImage = (color) => {
+            const modal = document.getElementById('imageModal');
+            const img = document.getElementById('previewImage');
+            const caption = document.getElementById('previewCaption');
+
+            let url = "";
+            let text = "";
+
+            if (color === 'VERDE') {
+                url = URL_VERDE;
+                text = "Camisa VERDE";
+            } else if (color === 'AZUL') {
+                url = URL_AZUL;
+                text = "Camisa AZUL";
+            } else {
+                return;
+            }
+
+            img.src = url;
+            caption.innerText = text;
+            modal.classList.remove('hidden');
+        };
+
+        window.closeImageModal = () => {
+            document.getElementById('imageModal').classList.add('hidden');
+        };
+
+        // --- DELETE MODAL ---
+        window.closeDeleteModal = () => {
+            document.getElementById('deleteModal').classList.add('hidden');
+        };
+
+        window.confirmDelete = () => {
+            const id = document.getElementById('deleteTargetId').value;
+            if (!id) return;
+
+            camisasData = camisasData.filter(item => item.id !== id);
+            saveData();
+            showToast("Item removido.");
+            closeDeleteModal();
+        };
+
+        // --- ADMIN & SECURITY LOGIC ---
+        window.requestAction = (actionCallback) => {
+            if (isAdmin) {
+                actionCallback();
+            } else {
+                pendingAction = actionCallback;
+                document.getElementById('adminError').classList.add('hidden');
+                document.getElementById('adminPasswordInput').value = '';
+                document.getElementById('adminAuthModal').classList.remove('hidden');
+                document.getElementById('adminPasswordInput').focus();
+            }
+        };
+
+        window.verifyAdminPassword = () => {
+            const input = document.getElementById('adminPasswordInput').value;
+            if (input === 'adminadmin') {
+                isAdmin = true;
+                document.getElementById('adminAuthModal').classList.add('hidden');
+                document.getElementById('adminStatusIndicator').classList.remove('hidden');
+                document.getElementById('adminTools').classList.remove('hidden');
+
+                const btn = document.getElementById('btnMainAction');
+                btn.innerHTML = '<i class="fas fa-plus"></i> <span class="hidden md:inline">Adicionar</span>';
+                btn.classList.remove('bg-slate-700', 'hover:bg-slate-800');
+                btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+
+                showToast("Modo Administrador: Ativado");
+                if (pendingAction) {
+                    pendingAction();
+                    pendingAction = null;
+                }
+            } else {
+                document.getElementById('adminError').classList.remove('hidden');
+            }
+        };
+
+        window.exitAdminMode = () => {
+            isAdmin = false;
+            document.getElementById('adminStatusIndicator').classList.add('hidden');
+            document.getElementById('adminTools').classList.add('hidden');
+
+            const btn = document.getElementById('btnMainAction');
+            btn.innerHTML = '<i class="fas fa-user-cog"></i> <span class="hidden md:inline">Gerenciar</span>';
+            btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            btn.classList.add('bg-slate-700', 'hover:bg-slate-800');
+
+            showToast("Modo Administrador: Desativado");
+        };
+
+        window.closeAdminModal = () => {
+            document.getElementById('adminAuthModal').classList.add('hidden');
+            pendingAction = null;
+        };
+
+        document.getElementById('adminPasswordInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') window.verifyAdminPassword();
+        });
+
+
+        // --- GENERAL LOGIN ---
+        window.attemptLogin = () => {
+            const pass = document.getElementById('passwordInput').value;
+            if (pass === '1234') {
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.getElementById('appContainer').classList.remove('hidden');
+                loadData(); // Load data on login
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        };
+
+        document.getElementById('passwordInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') window.attemptLogin();
+        });
+
+        // --- APP FUNCTIONS ---
+        window.handleMainAction = () => {
+            if (isAdmin) {
+                openModal();
+            } else {
+                requestAction(() => {
+                    openModal();
+                });
+            }
+        };
+
+        window.openModal = (id = null, data = null) => {
+            const modal = document.getElementById('entryModal');
+            const title = document.getElementById('modalTitle');
+            const editId = document.getElementById('editDocId');
+
+            document.getElementById('inputName').value = '';
+            document.getElementById('inputSize').value = 'G';
+            document.getElementById('inputColor').value = 'VERDE';
+            document.getElementById('inputValue').value = '16.00';
+            document.getElementById('inputPaid').checked = false;
+
+            if (id && data) {
+                title.innerText = "Editar Pedido";
+                editId.value = id;
+                document.getElementById('inputName').value = data.name;
+                document.getElementById('inputSize').value = data.size;
+                document.getElementById('inputColor').value = data.color;
+                document.getElementById('inputValue').value = data.value;
+                document.getElementById('inputPaid').checked = data.paid;
+            } else {
+                title.innerText = "Adicionar Pessoa";
+                editId.value = '';
+            }
+            modal.classList.remove('hidden');
+        };
+
+        window.closeModal = () => {
+            document.getElementById('entryModal').classList.add('hidden');
+        };
+
+        window.saveEntry = () => {
+            const name = document.getElementById('inputName').value.trim();
+            const size = document.getElementById('inputSize').value;
+            const color = document.getElementById('inputColor').value;
+            const value = parseFloat(document.getElementById('inputValue').value) || 0;
+            const paid = document.getElementById('inputPaid').checked;
+            const docId = document.getElementById('editDocId').value;
+
+            if (!name) {
+                showToast("Digite o nome da pessoa!");
+                return;
+            }
+
+            if (docId) {
+                // Update existing
+                const index = camisasData.findIndex(i => i.id === docId);
+                if (index > -1) {
+                    camisasData[index] = { ...camisasData[index], name, size, color, value, paid };
+                    showToast("Pedido atualizado!");
+                }
+            } else {
+                // Add new
+                const newId = 'id_' + Date.now();
+                camisasData.push({ id: newId, name, size, color, value, paid, createdAt: new Date().toISOString() });
+                showToast("Pessoa adicionada!");
+            }
+            saveData();
+            closeModal();
+        };
+
+        // Protected Actions Wrappers
+        window.triggerTogglePaid = (id, currentStatus) => {
+            requestAction(() => {
+                const index = camisasData.findIndex(i => i.id === id);
+                if (index > -1) {
+                    camisasData[index].paid = !currentStatus;
+                    saveData();
+                }
+            });
+        };
+
+        window.triggerDelete = (id) => {
+            requestAction(() => {
+                document.getElementById('deleteTargetId').value = id;
+                document.getElementById('deleteModal').classList.remove('hidden');
+            });
+        };
+
+        window.triggerEdit = (id, dataStr) => {
+            // Note: dataStr is object passed from HTML
+            requestAction(() => {
+                openModal(id, dataStr);
+            });
+        };
+
+        // --- PIX MODAL FUNCTIONS ---
+        window.openPixModal = () => {
+            document.getElementById('pixModal').classList.remove('hidden');
+        };
+
+        window.closePixModal = () => {
+            document.getElementById('pixModal').classList.add('hidden');
+        };
+
+        window.copyPix = () => {
+            // REPLACE WITH YOUR ACTUAL PIX KEY HERE
+            const pixKey = "00020126580014br.gov.bcb.pix0114+55119999999995204000053039865802BR5913NOME RECEBEDOR6008SAO PAULO62070503***63041234";
+
+            navigator.clipboard.writeText(pixKey).then(() => {
+                showToast("Chave Pix copiada!");
+
+                // Visual feedback on button
+                const btn = document.getElementById('btnCopyPix');
+                const originalContent = btn.innerHTML;
+                const originalClass = btn.className;
+
+                btn.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+                btn.className = "w-full bg-green-500 text-white font-bold py-2.5 rounded-lg transition flex items-center justify-center gap-2 shadow-lg";
+
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.className = originalClass;
+                }, 2000);
+
+            }).catch(err => {
+                console.error('Erro ao copiar: ', err);
+                showToast("Erro ao copiar. Tente selecionar manualmente.");
+            });
+        };
+
+
+        // --- UI RENDERING ---
+        function renderTable(list) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-400">Nenhum pedido encontrado.</td></tr>`;
+                return;
+            }
+
+            list.forEach(item => {
+                let colorClass = "bg-gray-100 text-gray-600";
+                if (item.color === 'VERDE') colorClass = "bg-emerald-100 text-emerald-700 cursor-pointer hover:bg-emerald-200 hover:ring-2 hover:ring-emerald-300 transition";
+                if (item.color === 'AZUL') colorClass = "bg-blue-100 text-blue-700 cursor-pointer hover:bg-blue-200 hover:ring-2 hover:ring-blue-300 transition";
+
+                const rowClass = item.paid ? "bg-green-50/50" : "";
+                const statusBadge = item.paid
+                    ? `<span onclick="triggerTogglePaid('${item.id}', true)" class="cursor-pointer px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 hover:bg-green-200">PAGO</span>`
+                    : `<span onclick="triggerTogglePaid('${item.id}', false)" class="cursor-pointer px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 hover:bg-yellow-200">PENDENTE</span>`;
+
+                // Escape special characters for HTML attribute
+                const safeData = JSON.stringify(item).replace(/"/g, '&quot;');
+
+                const colorSpan = `<span onclick="viewImage('${item.color}')" class="${colorClass} px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider select-none">${item.color}</span>`;
+
+                const tr = document.createElement('tr');
+                tr.className = `border-b border-gray-100 hover:bg-gray-50 transition ${rowClass}`;
+                tr.innerHTML = `
+                    <td class="p-4 font-medium text-gray-800">${item.name}</td>
+                    <td class="p-4 text-center"><span class="bg-gray-100 px-2 py-1 rounded text-xs font-bold">${item.size}</span></td>
+                    <td class="p-4 text-center">${colorSpan}</td>
+                    <td class="p-4 text-center">${statusBadge}</td>
+                    <td class="p-4 text-right font-mono text-gray-600">R$ ${item.value.toFixed(2).replace('.', ',')}</td>
+                    <td class="p-4 text-center">
+                        <div class="flex justify-center gap-2">
+                            <button onclick="triggerEdit('${item.id}', ${safeData})" class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition">
+                                <i class="fas fa-pen text-xs"></i>
+                            </button>
+                            <button onclick="triggerDelete('${item.id}')" class="w-8 h-8 rounded-full bg-red-50 text-red-600 hover:bg-red-100 flex items-center justify-center transition">
+                                <i class="fas fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateStats(list) {
+            const totalPaidVal = list.reduce((acc, curr) => curr.paid ? acc + curr.value : acc, 0);
+            const totalForecastVal = list.reduce((acc, curr) => acc + curr.value, 0);
+
+            const totalPaid = list.filter(i => i.paid).length;
+            const totalPending = list.length - totalPaid;
+            const greenCount = list.filter(i => i.color === 'VERDE').length;
+            const blueCount = list.filter(i => i.color === 'AZUL').length;
+
+            document.getElementById('totalValueDisplay').innerText = `R$ ${totalPaidVal.toFixed(2).replace('.', ',')}`;
+            document.getElementById('totalForecastDisplay').innerText = `R$ ${totalForecastVal.toFixed(2).replace('.', ',')}`;
+            document.getElementById('totalItemsDisplay').innerText = list.length;
+            document.getElementById('countPaid').innerText = totalPaid;
+            document.getElementById('countPending').innerText = totalPending;
+            document.getElementById('countGreen').innerText = greenCount;
+            document.getElementById('countBlue').innerText = blueCount;
+
+            const sizeCounts = { 'PP': 0, 'P': 0, 'M': 0, 'G': 0, 'GG': 0, 'XG': 0, 'XGG': 0, 'EG': 0 };
+            list.forEach(item => {
+                const s = item.size || '?';
+                sizeCounts[s] = (sizeCounts[s] || 0) + 1;
+            });
+
+            const sizeContainer = document.getElementById('sizeStatsContainer');
+            if (sizeContainer) {
+                sizeContainer.innerHTML = '';
+                const order = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'XGG', 'EG'];
+                Object.keys(sizeCounts).forEach(k => { if (!order.includes(k)) order.push(k); });
+
+                order.forEach(key => {
+                    const count = sizeCounts[key] || 0;
+                    const activeClass = count > 0
+                        ? "bg-white border-blue-200 text-blue-700 shadow-sm ring-1 ring-blue-50"
+                        : "bg-slate-50 border-transparent text-slate-300";
+
+                    const el = document.createElement('div');
+                    el.className = `border rounded-lg py-2 px-1 text-center flex flex-col items-center justify-center transition-all ${activeClass}`;
+                    el.innerHTML = `
+                        <span class="text-[10px] font-bold uppercase mb-1">${key}</span>
+                        <span class="text-lg font-black leading-none">${count}</span>
+                    `;
+                    sizeContainer.appendChild(el);
+                });
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+    </script>
+</body>
+
+</html>

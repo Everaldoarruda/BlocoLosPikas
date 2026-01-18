@@ -1,6 +1,8 @@
+import { db } from './firebase-config.js';
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
 // CONFIG
-const API_URL = 'http://localhost:3001/camisas';
-const STORAGE_KEY = 'camisas_data_v1';
+const COLLECTION_NAME = 'camisas';
 let camisasData = [];
 let isAdmin = false;
 let pendingAction = null;
@@ -22,35 +24,50 @@ const INITIAL_DATA_CSV = [
     { n: "DAVİD", s: "M", c: "VERDE", p: false }, { n: "SANDRO AMEIXA", s: "M", c: "AZUL", p: false }, { n: "CLAUDIA", s: "G", c: "AZUL", p: false }
 ];
 
-// --- LOCAL STORAGE FUNCTIONS ---
-function loadData() {
-    // API IMPLEMENTATION
-    fetch(API_URL)
-        .then(response => {
-            if (!response.ok) throw new Error('Falha ao carregar dados');
-            return response.json();
-        })
-        .then(data => {
-            camisasData = data;
-            refreshUI();
-        })
-        .catch(error => {
-            console.error(error);
-            showToast("Erro ao conectar com o servidor. Verifique se o json-server está rodando.");
-            // Fallback for UI if needed, or just show empty state
-            camisasData = [];
-            refreshUI();
+// --- FIREBASE FUNCTIONS ---
+function initRealtimeListener() {
+    console.log("Iniciando listener do Firebase...");
+    const q = query(collection(db, COLLECTION_NAME), orderBy("name"));
+
+    // This runs whenever data changes
+    onSnapshot(q, (querySnapshot) => {
+        camisasData = [];
+        querySnapshot.forEach((doc) => {
+            camisasData.push({ id: doc.id, ...doc.data() });
         });
+
+        // Seed if empty
+        if (camisasData.length === 0) {
+            console.log("Banco vazio. Populando seed data...");
+            seedDatabase();
+        } else {
+            console.log("Dados recebidos:", camisasData.length);
+            refreshUI();
+        }
+    }, (error) => {
+        console.error("Erro no listener:", error);
+        showToast("Erro de conexão com o Banco de Dados.");
+    });
 }
 
-// saveData is mostly replaced by individual API calls but we keep refreshUI wrappers if needed
-function saveData() {
-    // localStorage.setItem(STORAGE_KEY, JSON.stringify(camisasData));
-    refreshUI();
+async function seedDatabase() {
+    const batchPromises = INITIAL_DATA_CSV.map((item, index) => {
+        return addDoc(collection(db, COLLECTION_NAME), {
+            name: item.n,
+            size: item.s,
+            color: item.c,
+            paid: item.p,
+            value: 16.00,
+            createdAt: new Date().toISOString()
+        });
+    });
+
+    await Promise.all(batchPromises);
+    showToast("Banco de dados inicializado!");
 }
 
 function refreshUI() {
-    // Sort A-Z
+    // Sort A-Z (Client side sort as backup/refinement)
     const sortedList = [...camisasData].sort((a, b) => a.name.localeCompare(b.name));
     renderTable(sortedList);
     updateStats(sortedList);
@@ -112,20 +129,12 @@ window.confirmDelete = async () => {
     if (!id) return;
 
     try {
-        const response = await fetch(`${API_URL}/${id}`, {
-            method: 'DELETE'
-        });
-
-        if (response.ok) {
-            showToast("Item removido.");
-            closeDeleteModal();
-            loadData(); // Refresh list
-        } else {
-            showToast("Erro ao excluir item.");
-        }
+        await deleteDoc(doc(db, COLLECTION_NAME, id));
+        showToast("Item removido.");
+        closeDeleteModal();
     } catch (e) {
         console.error(e);
-        showToast("Erro de conexão.");
+        showToast("Erro ao excluir. Verifique sua conexão.");
     }
 };
 
@@ -194,7 +203,7 @@ window.attemptLogin = () => {
     if (pass === '1234') {
         document.getElementById('loginOverlay').classList.add('hidden');
         document.getElementById('appContainer').classList.remove('hidden');
-        loadData(); // Load data on login
+        initRealtimeListener(); // Start listening to Firebase
     } else {
         document.getElementById('loginError').classList.remove('hidden');
     }
@@ -261,34 +270,21 @@ window.saveEntry = async () => {
     const payload = { name, size, color, value, paid };
 
     try {
-        let response;
         if (docId) {
             // Update existing
-            response = await fetch(`${API_URL}/${docId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            const ref = doc(db, COLLECTION_NAME, docId);
+            await updateDoc(ref, payload);
+            showToast("Pedido atualizado!");
         } else {
             // Add new
             payload.createdAt = new Date().toISOString();
-            response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            await addDoc(collection(db, COLLECTION_NAME), payload);
+            showToast("Pessoa adicionada!");
         }
-
-        if (response.ok) {
-            showToast(docId ? "Pedido atualizado!" : "Pessoa adicionada!");
-            closeModal();
-            loadData(); // Refresh list to get new IDs/data
-        } else {
-            showToast("Erro ao salvar dados.");
-        }
+        closeModal();
     } catch (e) {
         console.error(e);
-        showToast("Erro de conexão ao salvar.");
+        showToast("Erro ao salvar. Verifique conexao.");
     }
 };
 
@@ -296,18 +292,11 @@ window.saveEntry = async () => {
 window.triggerTogglePaid = async (id, currentStatus) => {
     requestAction(async () => {
         try {
-            const response = await fetch(`${API_URL}/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ paid: !currentStatus })
-            });
-            if (response.ok) {
-                loadData();
-            } else {
-                showToast("Erro ao atualizar status.");
-            }
+            const ref = doc(db, COLLECTION_NAME, id);
+            await updateDoc(ref, { paid: !currentStatus });
+            // No need to reload, onSnapshot handles it
         } catch (e) {
-            showToast("Erro de conexão.");
+            showToast("Erro ao atualizar status.");
         }
     });
 };
@@ -337,7 +326,7 @@ window.closePixModal = () => {
 
 window.copyPix = () => {
     // REPLACE WITH YOUR ACTUAL PIX KEY HERE
-    const pixKey = "00020126580014br.gov.bcb.pix0114+55119999999995204000053039865802BR5913NOME RECEBEDOR6008SAO PAULO62070503***63041234";
+    const pixKey = "81985900577";
 
     navigator.clipboard.writeText(pixKey).then(() => {
         showToast("Chave Pix copiada!");
@@ -383,6 +372,7 @@ function renderTable(list) {
             : `<span onclick="triggerTogglePaid('${item.id}', false)" class="cursor-pointer px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 hover:bg-yellow-200">PENDENTE</span>`;
 
         // Escape special characters for HTML attribute
+        // We use a safe serialization for the onclick handler
         const safeData = JSON.stringify(item).replace(/"/g, '&quot;');
 
         const colorSpan = `<span onclick="viewImage('${item.color}')" class="${colorClass} px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider select-none">${item.color}</span>`;
